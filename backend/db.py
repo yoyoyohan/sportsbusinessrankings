@@ -293,7 +293,11 @@ def connect_postgres(url: str | None = None) -> Conn:
         dsn,
         row_factory=dict_row,
         prepare_threshold=None,
-        connect_timeout=20,
+        connect_timeout=10,
+        keepalives=1,
+        keepalives_idle=30,
+        keepalives_interval=10,
+        keepalives_count=3,
     )
     return Conn(raw, "postgres")
 
