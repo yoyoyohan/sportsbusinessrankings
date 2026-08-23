@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.DS_Store
+.env
+data/_summary.json
+data/ratings.db
+data/*.db
+*.db-journal
+__pycache__/
+*.pyc
+sources/*.xlsm
+sources/*.xlsx
+sources/*.numbers
+sources/*.part
+dist/
