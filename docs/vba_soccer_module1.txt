@@ -1,0 +1,97 @@
+VBA MACRO Module1.bas 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/Module1'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Sub HSRatingCalc()
+    Dim i As Long
+    Dim j As Long
+    i = Sheet3.Cells(7, 1)
+    While Not IsEmpty(Sheet1.Cells(i, 2))
+        Sheet3.Cells(3, 3) = i
+        Sheet3.Cells(2, 1) = Sheet1.Cells(i, 2)
+        Sheet3.Cells(2, 3) = Sheet1.Cells(i, 3)
+        Sheet3.Cells(2, 4) = Sheet1.Cells(i, 5)
+        Sheet3.Cells(2, 6) = Sheet1.Cells(i, 4)
+        Sheet3.Cells(3, 2) = Sheet1.Cells(i, 6)
+        Sheet3.Cells(4, 1) = Sheet1.Cells(i, 1)
+        Call HSUpdater
+        i = i + 1
+    Wend
+    Sheet3.Cells(7, 1) = i
+    Beep
+End Sub
+
+Sub HSUpdater()
+    Dim column As Long
+    Dim row As Long
+    column = 6
+    Dim i As Long
+    Dim delta As Double
+    i = Sheet3.Cells(3, 3)
+    delta = Sheet3.Cells(1, 17)
+    Dim newoffrating1 As Variant
+    Dim newdefrating1 As Variant
+    Dim newoffrating2 As Variant
+    Dim newdefrating2 As Variant
+    Dim newdate As Variant
+    Dim team1 As Variant
+    Dim team2 As Variant
+    Dim score1 As Variant
+    Dim score2 As Variant
+    Dim orioffrating1 As Variant
+    Dim oridefrating1 As Variant
+    Dim orioffrating2 As Variant
+    Dim oridefrating2 As Variant
+    Dim test As Variant
+    Dim diff As Variant
+    Dim error As Variant
+    newoffrating1 = Sheet3.Range("c5")
+    newdefrating1 = Sheet3.Range("d5")
+    newoffrating2 = Sheet3.Range("c6")
+    newdefrating2 = Sheet3.Range("d6")
+    newdate = Sheet3.Range("a4")
+    team1 = Sheet3.Range("a4")
+    team2 = Sheet3.Range("d2")
+    score1 = Sheet3.Range("b2")
+    score2 = Sheet3.Range("c2")
+    home = Sheet3.Range("b3")
+    orioffrating1 = Sheet3.Range("a1")
+    oridefrating1 = Sheet3.Range("b1")
+    orioffrating2 = Sheet3.Range("f1")
+    oridefrating2 = Sheet3.Range("e1")
+    diff = Sheet3.Range("j2")
+    error = Sheet3.Range("m3")
+    Sheet1.Cells(i, 7) = orioffrating1
+    Sheet1.Cells(i, 8) = oridefrating1
+    Sheet1.Cells(i, 9) = orioffrating2
+    Sheet1.Cells(i, 10) = oridefrating2
+    Sheet1.Cells(i, 11) = newoffrating1
+    Sheet1.Cells(i, 12) = newdefrating1
+    Sheet1.Cells(i, 13) = newoffrating2
+    Sheet1.Cells(i, 14) = newdefrating2
+    Sheet1.Cells(i, 15) = diff
+    Sheet1.Cells(i, 16) = error
+    If Sheet3.Range("b3") = 1 Then
+        Sheet3.Range("q2") = Sheet3.Range("q2") + Sheet3.Range("k5")
+        Sheet3.Range("q3") = Sheet3.Range("q3") + 1
+        Sheet3.Range("r2") = Sheet3.Range("r2") - Sheet3.Range("l5")
+        Sheet3.Range("r3") = Sheet3.Range("r3") + 1
+    End If
+    row = WorksheetFunction.Match(Sheet3.Range("A2"), Sheet2.Range("D1:D10000"), 0)
+    Sheet2.Cells(row, column) = newoffrating1
+    Sheet2.Cells(row, 7) = newdefrating1
+    Sheet2.Cells(row, 8) = newdate
+    Sheet2.Cells(row, 9) = Sheet2.Cells(row, 9) + delta
+    row = WorksheetFunction.Match(Sheet3.Range("f2"), Sheet2.Range("D1:D10000"), 0)
+    Sheet2.Cells(row, column) = newoffrating2
+    Sheet2.Cells(row, 7) = newdefrating2
+    Sheet2.Cells(row, 8) = newdate
+    Sheet2.Cells(row, 9) = Sheet2.Cells(row, 9) + delta
+    Sheet3.Range("f2").Select
+    Selection.Clear
+    Sheet3.Range("A2").Select
+    Selection.Clear
+End Sub
+
+
+-------------------------------------------------------------------------------
+VBA MACRO Sheet5.cls 
