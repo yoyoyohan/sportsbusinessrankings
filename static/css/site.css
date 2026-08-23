@@ -105,12 +105,17 @@ a:hover { text-decoration: underline; }
 
 .season-block {
   margin-top: 28px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  overflow: hidden;
 }
 
 h2.season {
-  margin: 0 0 12px;
-  padding-left: 12px;
-  border-left: 3px solid var(--accent);
+  margin: 0;
+  padding: 11px 16px;
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--line);
+  border-left: none;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -118,52 +123,42 @@ h2.season {
   color: var(--accent);
 }
 
-.sport-grid {
-  display: grid;
-  grid-template-columns: 1.35fr 1fr 1fr;
-  gap: 10px;
-}
-
-.sport-grid a.sport-card:first-child {
-  grid-row: span 2;
-  justify-content: center;
-  min-height: 100%;
-  padding: 22px 18px;
-  background:
-    linear-gradient(160deg, var(--accent-soft) 0%, var(--card) 55%);
-}
-
-.sport-grid a.sport-card:first-child .sport-name {
-  font-size: 1.35rem;
-}
-
-a.sport-card {
+.sport-list {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 8px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
-  padding: 14px 15px 13px;
-  text-decoration: none;
-  color: var(--ink);
-  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-a.sport-card:hover {
-  border-color: var(--line-strong);
-  border-left-color: var(--accent);
-  box-shadow: 0 6px 18px rgba(91, 61, 154, 0.08);
-  transform: translateY(-1px);
+a.sport-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  text-decoration: none;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  transition: background 0.12s ease;
+}
+
+a.sport-row:last-child {
+  border-bottom: none;
+}
+
+a.sport-row:hover {
+  background: var(--row-hover);
   text-decoration: none;
 }
 
 .sport-name {
   font-family: "Newsreader", Georgia, serif;
-  font-size: 1.06rem;
+  font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+a.sport-row .muted {
+  flex-shrink: 0;
+  text-align: right;
 }
 
 .filters {
@@ -341,19 +336,13 @@ table.data a { font-weight: 500; }
   font-size: 0.88rem;
 }
 
-@media (max-width: 720px) {
-  .sport-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .sport-grid a.sport-card:first-child {
-    grid-column: 1 / -1;
-    grid-row: auto;
-    min-height: 0;
-  }
-}
-
 @media (max-width: 640px) {
-  .sport-grid { grid-template-columns: 1fr; }
   .site-header { flex-direction: column; gap: 10px; }
   .filters input { width: 100%; min-width: 0; }
+  a.sport-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  a.sport-row .muted { text-align: left; }
 }

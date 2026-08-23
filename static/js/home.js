@@ -1,4 +1,4 @@
-import { api } from "./util.js?v=11";
+import { api } from "./util.js?v=12";
 
 const content = document.getElementById("content");
 
@@ -15,12 +15,12 @@ try {
     .map(
       (g) => `<section class="season-block">
         <h2 class="season">${g}</h2>
-        <div class="sport-grid">${groups[g]
+        <div class="sport-list">${groups[g]
           .map((s) => {
             const bits = [];
             if (s.as_of) bits.push(s.as_of);
             if (s.ranked) bits.push(`${s.ranked} teams`);
-            return `<a class="sport-card" href="/s/${encodeURIComponent(s.slug)}">
+            return `<a class="sport-row" href="/s/${encodeURIComponent(s.slug)}">
               <span class="sport-name">${s.name}</span>
               ${bits.length ? `<span class="muted">${bits.join(" · ")}</span>` : ""}
             </a>`;

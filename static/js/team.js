@@ -1,4 +1,4 @@
-import { api, deltaHtml, fmt, fmtInt, ratingChart, teamHref } from "./util.js?v=11";
+import { api, deltaHtml, fmt, fmtInt, ratingChart, teamHref } from "./util.js?v=12";
 const slug = location.pathname.split("/")[2];
 const name = new URLSearchParams(location.search).get("name");
 const content = document.getElementById("content");
