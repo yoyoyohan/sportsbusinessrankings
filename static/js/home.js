@@ -1,4 +1,4 @@
-import { api } from "./util.js?v=12";
+import { api } from "./util.js?v=13";
 
 const content = document.getElementById("content");
 
@@ -17,12 +17,10 @@ try {
         <h2 class="season">${g}</h2>
         <div class="sport-list">${groups[g]
           .map((s) => {
-            const bits = [];
-            if (s.as_of) bits.push(s.as_of);
-            if (s.ranked) bits.push(`${s.ranked} teams`);
+            const meta = s.ranked ? `${s.ranked} teams` : "";
             return `<a class="sport-row" href="/s/${encodeURIComponent(s.slug)}">
               <span class="sport-name">${s.name}</span>
-              ${bits.length ? `<span class="muted">${bits.join(" · ")}</span>` : ""}
+              ${meta ? `<span class="muted">${meta}</span>` : ""}
             </a>`;
           })
           .join("")}</div>
