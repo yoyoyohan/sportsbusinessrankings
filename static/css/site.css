@@ -1,30 +1,41 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Newsreader:opsz,wght@6..72,600;6..72,700&display=swap");
+
 :root {
-  --ink: #1a1a1a;
-  --muted: #5c5c5c;
-  --line: #e6e6e6;
-  --bg: #fff;
+  --ink: #141414;
+  --muted: #6a6a6a;
+  --line: #e2e2e2;
+  --line-strong: #d0d0d0;
+  --bg: #f3f3f1;
   --card: #fff;
+  --link: #0b3d6e;
+  --header: #fff;
+  --row-alt: #fafafa;
+  --row-hover: #f0f0ee;
+  --pos: #1a6b3c;
+  --neg: #b33a2e;
 }
 
 * { box-sizing: border-box; }
 
 html {
-  font-family: Georgia, "Times New Roman", Times, serif;
+  font-family: "DM Sans", system-ui, sans-serif;
   font-size: 16px;
   color: var(--ink);
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, #ebebe8 0%, transparent 55%),
+    var(--bg);
   color-scheme: light;
 }
 
-body { margin: 0; }
+body { margin: 0; min-height: 100vh; }
 
-a { color: #123a6b; text-decoration: none; }
+a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 .page {
-  max-width: 960px;
+  max-width: 980px;
   margin: 0 auto;
-  padding: 0 16px 56px;
+  padding: 0 18px 64px;
 }
 
 .site-header {
@@ -32,18 +43,20 @@ a:hover { text-decoration: underline; }
   justify-content: space-between;
   align-items: baseline;
   gap: 16px;
-  background: var(--card);
+  background: var(--header);
   border: 1px solid var(--line);
   border-top: none;
-  padding: 14px 16px;
-  margin: 0 -16px 20px;
+  padding: 16px 18px;
+  margin: 0 -18px 24px;
 }
 
 .site-header h1 {
   margin: 0;
-  font-size: 1.25rem;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.45rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
 }
 
 .site-header h1 a {
@@ -51,43 +64,53 @@ a:hover { text-decoration: underline; }
   text-decoration: none;
 }
 
+.site-header h1 a:hover { text-decoration: none; opacity: 0.75; }
+
 .nav {
   display: flex;
-  gap: 16px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  gap: 18px;
   font-size: 0.88rem;
+  font-weight: 500;
 }
 
-.nav a { color: var(--muted); }
+.nav a { color: var(--muted); text-decoration: none; }
 .nav a.current,
-.nav a:hover { color: var(--ink); }
+.nav a:hover { color: var(--ink); text-decoration: none; }
+
+.lede {
+  margin: 0 0 8px;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
 
 .meta {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--muted);
-  font-size: 0.85rem;
-  margin: 0 0 12px;
+  font-size: 0.88rem;
+  margin: 0 0 14px;
+  line-height: 1.4;
 }
 
 .muted {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--muted);
   font-size: 0.8rem;
+  line-height: 1.35;
 }
 
 h2.season {
-  margin: 22px 0 8px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 0.72rem;
+  margin: 28px 0 10px;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .sport-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 10px;
 }
 
@@ -97,48 +120,55 @@ a.sport-card {
   gap: 6px;
   background: var(--card);
   border: 1px solid var(--line);
-  padding: 14px 14px 12px;
+  padding: 15px 15px 13px;
   text-decoration: none;
   color: var(--ink);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 a.sport-card:hover {
-  border-color: #ccc;
+  border-color: var(--line-strong);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
   text-decoration: none;
 }
 
 .sport-name {
-  font-size: 1.02rem;
-  font-weight: 700;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.08rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .filters {
   display: flex;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .filters input {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 0.9rem;
+  font-family: inherit;
+  font-size: 0.92rem;
   background: var(--card);
   border: 1px solid var(--line);
-  padding: 8px 10px;
-  min-width: 220px;
+  padding: 10px 12px;
+  min-width: min(100%, 280px);
+  transition: border-color 0.15s ease;
 }
 
 .filters input:focus {
   outline: none;
-  border-color: #555;
+  border-color: #888;
 }
 
 .btn {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: inherit;
   font-size: 0.88rem;
+  font-weight: 600;
   border: 1px solid var(--ink);
   background: var(--ink);
   color: #fff;
-  padding: 7px 14px;
+  padding: 8px 14px;
   cursor: pointer;
 }
 
@@ -151,12 +181,15 @@ a.sport-card:hover {
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
-  margin: 0 0 10px;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
 }
 
 .page-head h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
 .table-wrap {
@@ -168,24 +201,23 @@ a.sport-card:hover {
 table.data {
   width: 100%;
   border-collapse: collapse;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
 }
 
 table.data th,
 table.data td {
-  padding: 8px 10px;
-  border-bottom: 1px solid #e4e4e4;
+  padding: 9px 12px;
+  border-bottom: 1px solid #ececec;
   text-align: right;
   white-space: nowrap;
 }
 
 table.data th {
-  background: #f4f4f4;
-  font-size: 0.72rem;
+  background: #f6f6f4;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
   cursor: pointer;
@@ -199,8 +231,8 @@ table.data th.sorted { color: var(--ink); }
 table.data th.left,
 table.data td.left { text-align: left; }
 
-table.data tbody tr:nth-child(even) { background: #f7f7f7; }
-table.data tbody tr:hover { background: #eee; }
+table.data tbody tr:nth-child(even) { background: var(--row-alt); }
+table.data tbody tr:hover { background: var(--row-hover); }
 
 table.data td.rank {
   font-weight: 700;
@@ -210,56 +242,56 @@ table.data td.rank {
 
 table.data a { font-weight: 500; }
 
-.delta-pos { color: #1b6b3a; }
-.delta-neg { color: #a33; }
+.delta-pos { color: var(--pos); font-weight: 600; }
+.delta-neg { color: var(--neg); font-weight: 600; }
 .delta-zero { color: var(--muted); }
 
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 8px;
-  margin: 0 0 14px;
+  gap: 10px;
+  margin: 0 0 16px;
 }
 
 .stat {
   background: var(--card);
   border: 1px solid var(--line);
-  padding: 10px 12px;
+  padding: 12px 14px;
 }
 
 .stat .label {
   display: block;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 0.68rem;
-  letter-spacing: 0.06em;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .stat .value {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-variant-numeric: tabular-nums;
-  font-size: 1.2rem;
-  margin-top: 4px;
+  font-size: 1.28rem;
+  font-weight: 600;
+  margin-top: 5px;
 }
 
 .chart-wrap {
   background: var(--card);
   border: 1px solid var(--line);
-  padding: 10px 12px 4px;
-  margin: 0 0 14px;
+  padding: 12px 14px 6px;
+  margin: 0 0 16px;
 }
 
 .chart-wrap svg {
   display: block;
   width: 100%;
-  height: 140px;
+  height: 150px;
 }
 
 .panel {
   background: var(--card);
   border: 1px solid var(--line);
-  padding: 14px;
+  padding: 16px;
   margin-bottom: 14px;
 }
 
@@ -268,7 +300,7 @@ table.data a { font-weight: 500; }
 
 .log {
   margin-top: 12px;
-  background: #f7f7f7;
+  background: #f7f7f5;
   border: 1px solid var(--line);
   padding: 10px;
   font-family: ui-monospace, Menlo, monospace;
@@ -278,12 +310,20 @@ table.data a { font-weight: 500; }
 }
 
 .back {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--muted);
   font-size: 0.88rem;
 }
 
+.site-footer {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 @media (max-width: 640px) {
-  .sport-grid { grid-template-columns: 1fr 1fr; }
-  .site-header { flex-direction: column; gap: 8px; }
+  .sport-grid { grid-template-columns: 1fr; }
+  .site-header { flex-direction: column; gap: 10px; }
+  .filters input { width: 100%; min-width: 0; }
 }

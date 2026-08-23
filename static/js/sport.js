@@ -1,7 +1,4 @@
-import { api, bindSortHeaders, deltaHtml, fmt, fmtInt, hideAdminIfPublic, teamHref, th } from "./util.js?v=8";
-
-hideAdminIfPublic();
-
+import { api, bindSortHeaders, deltaHtml, fmt, fmtInt, teamHref, th } from "./util.js?v=10";
 const slug = location.pathname.split("/")[2];
 const content = document.getElementById("content");
 let sortState = { key: "rank", dir: 1 };

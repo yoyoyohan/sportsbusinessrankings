@@ -1,6 +1,4 @@
-import { api, hideAdminIfPublic } from "./util.js?v=8";
-
-hideAdminIfPublic();
+import { api } from "./util.js?v=10";
 
 const content = document.getElementById("content");
 

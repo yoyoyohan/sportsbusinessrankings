@@ -1,4 +1,4 @@
-import { api } from "./util.js?v=9";
+import { api } from "./util.js?v=10";
 
 const list = document.getElementById("sport-list");
 const logAll = document.getElementById("log-all");
