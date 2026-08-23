@@ -1,4 +1,4 @@
-import { api, bindSortHeaders, deltaHtml, fmt, fmtInt, teamHref, th } from "./util.js?v=10";
+import { api, bindSortHeaders, deltaHtml, fmt, fmtInt, teamHref, th } from "./util.js?v=11";
 const slug = location.pathname.split("/")[2];
 const content = document.getElementById("content");
 let sortState = { key: "rank", dir: 1 };

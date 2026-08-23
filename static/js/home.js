@@ -1,4 +1,4 @@
-import { api } from "./util.js?v=10";
+import { api } from "./util.js?v=11";
 
 const content = document.getElementById("content");
 
@@ -13,7 +13,8 @@ try {
   content.innerHTML = ["Fall", "Winter", "Spring"]
     .filter((g) => groups[g])
     .map(
-      (g) => `<h2 class="season">${g}</h2>
+      (g) => `<section class="season-block">
+        <h2 class="season">${g}</h2>
         <div class="sport-grid">${groups[g]
           .map((s) => {
             const bits = [];
@@ -24,7 +25,8 @@ try {
               ${bits.length ? `<span class="muted">${bits.join(" · ")}</span>` : ""}
             </a>`;
           })
-          .join("")}</div>`
+          .join("")}</div>
+      </section>`
     )
     .join("");
 } catch (err) {
