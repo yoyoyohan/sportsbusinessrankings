@@ -1,0 +1,83 @@
+"""Download Drive copies (GET only) and import into the configured database.
+
+Used by the Render cron job so rankings refresh without a human click.
+"""
+
+from __future__ import annotations
+
+import sys
+import traceback
+from datetime import datetime, timezone
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "backend"))
+
+from catalog import SPORTS  # noqa: E402
+from db import connect, get_database_url, init_db, set_meta  # noqa: E402
+from drive_sync import refresh_sport_file  # noqa: E402
+from import_workbook import import_sport  # noqa: E402
+
+
+def run() -> dict:
+    if not get_database_url():
+        print("WARNING: DATABASE_URL is not set; importing into local SQLite.", flush=True)
+
+    started = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    print(f"scheduled refresh start {started}", flush=True)
+
+    results = []
+    errors = []
+    for spec in SPORTS:
+        slug = spec["slug"]
+        print(f"  refresh {slug} …", flush=True)
+        try:
+            path = refresh_sport_file(slug)
+            summary = import_sport(slug, include_games=True)
+            results.append(
+                {
+                    "slug": slug,
+                    "ok": True,
+                    "downloaded": str(path),
+                    **summary,
+                }
+            )
+            print(f"    ok teams={summary.get('teams')} games={summary.get('games')}", flush=True)
+        except Exception as exc:
+            errors.append({"slug": slug, "error": str(exc)})
+            print(f"    FAIL {exc}", flush=True)
+            traceback.print_exc()
+
+    finished = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    ok = len(errors) == 0
+    try:
+        conn = connect()
+        init_db(conn)
+        set_meta(conn, "last_refresh_at", finished)
+        set_meta(conn, "last_refresh_ok", "1" if ok else "0")
+        set_meta(conn, "last_refresh_errors", str(len(errors)))
+        conn.commit()
+        conn.close()
+    except Exception as exc:
+        print(f"meta write failed: {exc}", flush=True)
+
+    print(
+        f"scheduled refresh done ok={ok} sports={len(results)} errors={len(errors)} at {finished}",
+        flush=True,
+    )
+    return {
+        "ok": ok,
+        "started": started,
+        "finished": finished,
+        "results": results,
+        "errors": errors,
+        "drive_write": False,
+    }
+
+
+if __name__ == "__main__":
+    summary = run()
+    # Non-zero only if every sport failed
+    if not summary["results"] and summary["errors"]:
+        sys.exit(1)
+    sys.exit(0)

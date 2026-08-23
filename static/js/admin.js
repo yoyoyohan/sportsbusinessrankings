@@ -1,7 +1,8 @@
-import { api } from "./util.js?v=8";
+import { api } from "./util.js?v=9";
 
 const list = document.getElementById("sport-list");
 const logAll = document.getElementById("log-all");
+const refreshMeta = document.getElementById("refresh-meta");
 const adminToken = new URLSearchParams(location.search).get("token") || "";
 
 function adminHeaders() {
@@ -11,6 +12,16 @@ function adminHeaders() {
 async function load() {
   const data = await api("/api/status");
   const bySlug = Object.fromEntries((data.sports || []).map((s) => [s.slug, s]));
+  if (refreshMeta) {
+    const when = data.last_refresh_at ? `Last auto refresh: ${data.last_refresh_at}` : "No auto refresh yet";
+    const ok =
+      data.last_refresh_ok == null
+        ? ""
+        : data.last_refresh_ok === "1"
+          ? " (ok)"
+          : " (with errors)";
+    refreshMeta.textContent = `Scheduled 4× daily from Drive (read-only). ${when}${ok}.`;
+  }
   list.innerHTML = `<table class="data">
     <thead><tr>
       <th class="left">Sport</th><th class="left">As of</th><th></th>
@@ -39,12 +50,15 @@ async function run(url, btn) {
   const prev = btn.textContent;
   btn.disabled = true;
   logAll.hidden = false;
-  logAll.textContent = "Working…";
+  logAll.textContent = "Working… this can take several minutes.";
   try {
     const res = await fetch(url, { method: "POST", headers: adminHeaders() });
     const body = await res.json();
     if (!res.ok) throw new Error(body.detail || JSON.stringify(body));
-    logAll.textContent = "Done.";
+    const errs = (body.errors || []).length;
+    logAll.textContent = errs
+      ? `Finished with ${errs} sport error(s). Check Render logs.`
+      : "Done.";
     await load();
   } catch (err) {
     logAll.textContent = String(err);

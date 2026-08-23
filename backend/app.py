@@ -10,8 +10,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from catalog import DRIVE_FOLDER_URL, SPORTS, sport_by_slug
-from db import ROOT, connect, get_sport, init_db
-from drive_sync import refresh_all_files, refresh_sport_file
+from db import ROOT, connect, get_meta, get_sport, init_db
+from drive_sync import refresh_sport_file
 from import_workbook import import_all, import_sport
 
 NO_STORE = {"Cache-Control": "no-store, max-age=0"}
@@ -104,11 +104,25 @@ def status():
         return {
             "drive_folder": DRIVE_FOLDER_URL,
             "drive_write": False,
+            "last_refresh_at": get_meta(conn, "last_refresh_at"),
+            "last_refresh_ok": get_meta(conn, "last_refresh_ok"),
             "sports": sports,
             "catalog": [{"slug": s["slug"], "name": s["name"], "group": s["group"]} for s in SPORTS],
         }
     finally:
         conn.close()
+
+
+@app.post("/api/admin/refresh-all")
+def admin_refresh_all(request: Request):
+    """Re-download every catalog file from Drive (GET only), then import."""
+    require_admin(request)
+    try:
+        from scheduled_refresh import run as scheduled_run
+
+        return scheduled_run()
+    except Exception as exc:
+        raise HTTPException(500, f"Refresh failed: {exc}") from exc
 
 
 @app.get("/api/sports")
@@ -317,18 +331,6 @@ def admin_refresh_one(slug: str, request: Request):
         path = refresh_sport_file(slug)
         summary = import_sport(slug, include_games=True)
         return {"ok": True, "downloaded": str(path), **summary, "drive_write": False}
-    except Exception as exc:
-        raise HTTPException(500, f"Refresh failed: {exc}") from exc
-
-
-@app.post("/api/admin/refresh-all")
-def admin_refresh_all(request: Request):
-    """Re-download every catalog file from Drive (GET only), then import."""
-    require_admin(request)
-    try:
-        downloaded = refresh_all_files()
-        results = import_all(include_games=True)
-        return {"ok": True, "drive_write": False, "downloaded": downloaded, "results": results}
     except Exception as exc:
         raise HTTPException(500, f"Refresh failed: {exc}") from exc
 

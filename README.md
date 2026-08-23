@@ -76,15 +76,32 @@ Do not commit `.env` or `data/ratings.db`.
 
 Free Render services sleep after inactivity; the first load can take ~30 seconds.
 
-### 4. Later updates
+### 4. Auto-refresh from Drive (4× daily)
+
+`render.yaml` includes a **Cron Job** `rankings-refresh` that:
+
+1. Downloads the latest spreadsheet copies from Drive (GET only)
+2. Imports them into Supabase
+
+Schedule (UTC): `04:00`, `10:00`, `16:00`, `22:00` — about **12am / 6am / 12pm / 6pm** US Eastern during EDT.
+
+In Render:
+
+1. After pushing this repo, open **Dashboard** — you should see a new Cron Job, or use **New → Blueprint** to apply `render.yaml`
+2. Set `DATABASE_URL` on the cron job (same value as the web service)
+3. Cron Jobs may require a paid Render plan; if free cron is unavailable, use [cron-job.org](https://cron-job.org) to POST to  
+   `/api/admin/refresh-all` with header `X-Admin-Token: YOUR_TOKEN` four times a day  
+   (full refresh can take several minutes)
+
+You can still force an update anytime at `/admin?token=YOUR_ADMIN_TOKEN`.
+
+### 5. Manual laptop update
 
 On your laptop, refresh from Drive (`/admin` on localhost), then:
 
 ```bash
 python backend/migrate_to_supabase.py --yes
 ```
-
-To update from the live site, open `/admin?token=YOUR_ADMIN_TOKEN` (not for your coach).
 
 ## Update locally
 

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: knottsbase
+    name: sportsbusinessrankings
     runtime: python
     plan: free
     buildCommand: pip install -r backend/requirements.txt
@@ -12,4 +12,18 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: ADMIN_TOKEN
+        sync: false
+
+  # Four times daily (UTC): 04:00, 10:00, 16:00, 22:00
+  # ≈ 12am / 6am / 12pm / 6pm US Eastern during EDT
+  - type: cron
+    name: rankings-refresh
+    runtime: python
+    schedule: "0 4,10,16,22 * * *"
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: python backend/scheduled_refresh.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+      - key: DATABASE_URL
         sync: false
