@@ -17,6 +17,7 @@ from catalog import SPORTS  # noqa: E402
 from db import connect, get_database_url, init_db, set_meta  # noqa: E402
 from drive_sync import refresh_sport_file  # noqa: E402
 from import_workbook import import_sport  # noqa: E402
+from recompute import recompute_sport  # noqa: E402
 
 
 def run() -> dict:
@@ -34,15 +35,25 @@ def run() -> dict:
         try:
             path = refresh_sport_file(slug)
             summary = import_sport(slug, include_games=True)
+            print(f"    imported teams={summary.get('teams')} games={summary.get('games')}", flush=True)
+            recomputed = recompute_sport(slug)
             results.append(
                 {
                     "slug": slug,
                     "ok": True,
                     "downloaded": str(path),
                     **summary,
+                    "recompute": {
+                        "teams": recomputed.get("teams"),
+                        "engine": recomputed.get("engine"),
+                        "top5": recomputed.get("top5"),
+                    },
                 }
             )
-            print(f"    ok teams={summary.get('teams')} games={summary.get('games')}", flush=True)
+            print(
+                f"    recomputed engine={recomputed.get('engine')} teams={recomputed.get('teams')}",
+                flush=True,
+            )
         except Exception as exc:
             errors.append({"slug": slug, "error": str(exc)})
             print(f"    FAIL {exc}", flush=True)

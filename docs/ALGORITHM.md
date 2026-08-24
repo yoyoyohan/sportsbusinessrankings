@@ -58,34 +58,89 @@ NewDef2 = Def2 - K/w2
 Rating  = Off + Def
 ```
 
-Home edges `Q4/R4` are **running averages** updated after each home game (not fixed constants). Late-season Soccer values were about `Q4≈0.32`, `R4≈-0.05`.
+Home edges `Q4` / `R4` are running averages from the **Q/R accumulator columns** (coach-confirmed; see below). Late-season Soccer: `Q4≈0.320325`.
 
-Games weight starts near **2–2.75** for new teams and increases by **0.75** per game.
+Games weight: season start **2.75**; +**0.75** per game thereafter. New-team first Games weight follows same season-start convention once seeded.
+
+## Season start & new teams (coach-confirmed)
+
+### New season
+- **Carry** Off and Def from the previous season.
+- **Reset** Games weight to **2.75** for every team.
+
+### Home edge (Q / R columns)
+- Accumulators begin at **sum = 0**, **n = 1** → average `0/1 = 0`.
+- After each home game, update the running sum/count; `Q4` / `R4` are the averages used in Calc.
+- **Between seasons (current practice):** keep the same average, but **rescale the denominator to 100**.
+  - Example (soccer): `9679.905 / 30219` → `32.0325 / 100` so home Off advantage stays **+0.320325**.
+  - Purpose: allow gradual drift of HFA without a huge n that freezes the estimate, and without a tiny n that swings wildly.
+- **Open idea (coach):** for a from-scratch 2015 rebuild, start at **0 with n = 100** (same average 0, but defended against early extremes). Worth testing when we replay history.
+
+### New team mid-season
+Invert the expected-score equations so the first game fits exactly given the opponent’s known Off/Def, the actual scores, and home/away edges (`Q4` / `R4`):
+
+```
+# Expected (from Calc):
+score1 = Off1 - Def2 + Q4
+score2 = Off2 - Def1 - R4
+
+# Solve for the unknown side (new team):
+Off1 = score1 + Def2 - Q4
+Def1 = Off2 - R4 - score2
+# (mirror if team 2 is the new team)
+Off2 = score2 + Def1 + R4
+Def2 = Off1 - score1 + Q4
+```
+
+Coach example (neutral, edges ≈ 0): opponent Off 5 / Def 2, new team loses 3–2 → new Off **4** (4−2=2), new Def **2** (5−2=3).
+
+**UI rule:** adding a new team must be a **manual confirm** (not auto), so renames (e.g. Bishop Ahr → St. Thomas Aquinas) aren’t treated as brand-new schools.
+
+## Tennis (coach-confirmed)
+
+- One dual meet ≈ **10** regular-sport rating updates: **5 positions × 2 sets**.
+- Each **position** has its **own rating**.
+- System projects the score in **each set**; each set result updates that position’s rating (same family of update as other sports, applied per set/position).
+
+## History & projections (product requirement)
+
+- Goal: **rebuild all seasons** if possible; at minimum, **inject full game logs** and recompute ratings chronologically so the DB holds full history.
+- Full history is required for **percentage projections**: share of past games where the projection was wrong by **at least as much as the listed spread**, then **÷ 2** (error can go either direction, but the underdog only covers when wrong in the specific direction).
 
 ## Validation status
 
 | Test | Result |
 |------|--------|
-| Soccer Calc formulas + end-season HFA on **last ~50 games** | Very close (errors often &lt; 0.01–0.04); ~60% exact with approximate Games weights |
-| Full historical Soccer replay from 2015 with today’s Calc | **Fails** — early rows don’t match (likely evolving HFA, seed ratings, and/or formula changes over years) |
-| VBA present in Football, Volleyball, Bowling, Golf | Same `HSRatingCalc` / `HSUpdater` pattern; rating-only sports write one rating instead of Off/Def |
+| Soccer Calc + end-season HFA on **last ~50 games** | Very close (errors often &lt; 0.01–0.04) |
+| Full historical Soccer replay from 2015 with today’s Calc only | **Fails** without correct season Games reset, HFA rescale, seeds, and new-team handling — those rules are now documented |
+| VBA pattern | Same `HSRatingCalc` / `HSUpdater` across Off/Def and single-rating sports |
 
-**Conclusion:** We understand the **current** engine well enough to port Off/Def sports. We should **not** expect bit-identical rebuild of a decade of history without his seed/HFA starting values and any old formula versions.
+**Conclusion:** Coach rules + Calc are enough to port Off/Def (and define tennis as 10 position-set updates). Next: Python engine + chronological replay from game logs; compare to Rank / Ori–New columns; try HFA `n=100` at 2015 origin if early extremes appear.
+
+## Implementation (in repo)
+
+| Module | Role |
+|--------|------|
+| `backend/rating_engine.py` | Off/Def, margin, volleyball cap, absolute/golf, tennis lines |
+| `backend/recompute.py` | Replay game logs → `teams` + `sport_hfa` (+ tennis `line_matches`) |
+| `POST /api/admin/recompute/{slug}` | Recompute one sport |
+| `POST /api/admin/recompute-all` | Recompute every sport |
+| Scheduled Drive refresh | Import then **recompute** so live rankings are native |
+
+Engine modes (see `catalog.py`): `offdef`, `margin`, `margin_cap25`, `absolute`, `golf`, `lines`.
+
+CLI: `python backend/recompute.py --all --sqlite`
 
 ## What “native algorithm on the site” means
 
-1. Store games as source of truth in Supabase  
-2. Keep team Off/Def (or Rating) + Games weight in DB  
-3. On each new game, run the Calc update (Python port of the family formulas)  
-4. Optionally keep Drive import as a bootstrap / audit against Rank  
-
-## Still need from coach (optional but helpful)
-
-- Initial Games weight / seed ratings for a new season  
-- Whether older seasons used different Calc  
-- Tennis: confirm line-rating rules separately  
+1. Store games as source of truth in Supabase (full history)  
+2. Keep team Off/Def (or Rating) + Games weight + HFA accumulators in DB  
+3. On each new game (or full replay), run the Calc update in Python  
+4. Derive spread % projections from historical projection-error distribution  
+5. Drive import remains bootstrap / audit until replay matches  
 
 ## Files
 
 - `data/_algo_catalog.json` — per-workbook sheet/Calc snapshot  
 - `docs/vba_soccer_module1.txt` — extracted Soccer VBA  
+

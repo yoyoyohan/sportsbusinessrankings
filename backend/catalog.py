@@ -226,6 +226,32 @@ SPORTS = [
 ]
 
 
+# Native engine mode (Calc family). Used by recompute.
+# offdef | margin | margin_cap25 | absolute | golf | lines
+for _s in SPORTS:
+    kind = _s["kind"]
+    slug = _s["slug"]
+    if kind == "offdef":
+        _s["engine"] = "offdef"
+        _s["games_delta"] = 0.75
+    elif kind == "lines":
+        _s["engine"] = "lines"
+        _s["games_delta"] = 0.75
+    elif "volleyball" in slug:
+        _s["engine"] = "margin_cap25"
+        _s["games_delta"] = 0.25
+    elif "bowling" in slug or "gymnastics" in slug:
+        _s["engine"] = "absolute"
+        _s["games_delta"] = 0.25
+    elif "golf" in slug:
+        _s["engine"] = "golf"
+        _s["games_delta"] = 0.75
+    else:
+        # fencing, swimming
+        _s["engine"] = "margin"
+        _s["games_delta"] = 0.75
+
+
 def sport_by_slug(slug: str) -> dict | None:
     for s in SPORTS:
         if s["slug"] == slug:

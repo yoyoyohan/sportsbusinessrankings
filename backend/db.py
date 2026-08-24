@@ -20,6 +20,8 @@ SPORT_TABLES = (
     "projections",
     "our_games",
     "last_week",
+    "sport_hfa",
+    "line_matches",
 )
 
 PG_SCHEMA = [
@@ -165,6 +167,17 @@ PG_SCHEMA = [
         n DOUBLE PRECISION,
         last_game TEXT,
         PRIMARY KEY (sport_id, team)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS sport_hfa (
+        sport_id BIGINT PRIMARY KEY REFERENCES sports(id) ON DELETE CASCADE,
+        q_sum DOUBLE PRECISION NOT NULL DEFAULT 0,
+        q_n DOUBLE PRECISION NOT NULL DEFAULT 100,
+        r_sum DOUBLE PRECISION NOT NULL DEFAULT 0,
+        r_n DOUBLE PRECISION NOT NULL DEFAULT 100,
+        season_key TEXT,
+        updated_at TEXT
     )
     """,
 ]
@@ -479,6 +492,16 @@ def init_db(conn: Conn) -> None:
             last_game TEXT,
             PRIMARY KEY (sport_id, team)
         );
+
+        CREATE TABLE IF NOT EXISTS sport_hfa (
+            sport_id INTEGER PRIMARY KEY REFERENCES sports(id) ON DELETE CASCADE,
+            q_sum REAL NOT NULL DEFAULT 0,
+            q_n REAL NOT NULL DEFAULT 100,
+            r_sum REAL NOT NULL DEFAULT 0,
+            r_n REAL NOT NULL DEFAULT 100,
+            season_key TEXT,
+            updated_at TEXT
+        );
         """
     )
     conn.commit()
@@ -717,4 +740,8 @@ def require_sport(conn: Conn, slug: str):
 
 def clear_sport_data(conn: Conn, sport_id: int) -> None:
     for table in SPORT_TABLES:
-        conn.execute(f"DELETE FROM {table} WHERE sport_id = ?", (sport_id,))
+        try:
+            conn.execute(f"DELETE FROM {table} WHERE sport_id = ?", (sport_id,))
+        except Exception:
+            # Table may not exist yet on older DBs
+            continue

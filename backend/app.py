@@ -13,6 +13,7 @@ from catalog import DRIVE_FOLDER_URL, SPORTS, sport_by_slug
 from db import ROOT, connect, get_meta, get_sport, init_db
 from drive_sync import refresh_sport_file
 from import_workbook import import_all, import_sport
+from recompute import recompute_all_offdef, recompute_sport
 
 NO_STORE = {"Cache-Control": "no-store, max-age=0"}
 
@@ -333,6 +334,31 @@ def admin_refresh_one(slug: str, request: Request):
         return {"ok": True, "downloaded": str(path), **summary, "drive_write": False}
     except Exception as exc:
         raise HTTPException(500, f"Refresh failed: {exc}") from exc
+
+
+@app.post("/api/admin/recompute/{slug}")
+def admin_recompute_one(slug: str, request: Request):
+    """Replay game log through the native engine and refresh rankings."""
+    require_admin(request)
+    if not sport_by_slug(slug):
+        raise HTTPException(404, slug)
+    try:
+        return recompute_sport(slug)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(500, f"Recompute failed: {exc}") from exc
+
+
+@app.post("/api/admin/recompute-offdef")
+@app.post("/api/admin/recompute-all")
+def admin_recompute_all(request: Request):
+    """Replay all sports from stored game logs through the native engine."""
+    require_admin(request)
+    try:
+        return {"ok": True, "results": recompute_all_offdef()}
+    except Exception as exc:
+        raise HTTPException(500, f"Recompute failed: {exc}") from exc
 
 
 def page(name: str) -> FileResponse:

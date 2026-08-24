@@ -38,6 +38,17 @@ def cell(v):
         s = v.strip()
         if not s or s.startswith("#"):
             return None
+        # Normalize M/D/YYYY → ISO so chronological replay works
+        if "/" in s and len(s) <= 10:
+            parts = s.split("/")
+            if len(parts) == 3 and parts[0].isdigit() and parts[2].isdigit():
+                try:
+                    m, d0, y = int(parts[0]), int(parts[1]), int(parts[2])
+                    if y < 100:
+                        y += 2000
+                    return f"{y:04d}-{m:02d}-{d0:02d}"
+                except ValueError:
+                    pass
         return s
     return v
 
@@ -63,7 +74,7 @@ def _iter_sheet(path: Path, name: str, max_col: int = 20):
     return wb, rows
 
 
-def import_sport(slug: str, include_games: bool = True) -> dict:
+def import_sport(slug: str, include_games: bool = True, *, use_sqlite: bool = False) -> dict:
     spec = sport_by_slug(slug)
     if not spec:
         raise KeyError(slug)
@@ -71,8 +82,17 @@ def import_sport(slug: str, include_games: bool = True) -> dict:
     if not path.exists():
         raise FileNotFoundError(path)
 
-    conn = connect()
+    from db import DB_PATH, connect_sqlite
+
+    conn = connect_sqlite(DB_PATH) if use_sqlite else connect()
     init_db(conn)
+    # Ensure tennis/hfa tables exist before clear
+    try:
+        from recompute import _ensure_tables
+
+        _ensure_tables(conn)
+    except Exception:
+        pass
     row = conn.execute("SELECT id FROM sports WHERE slug = ?", (slug,)).fetchone()
     if row:
         sport_id = row["id"]
@@ -85,6 +105,13 @@ def import_sport(slug: str, include_games: bool = True) -> dict:
             "INSERT INTO sports(slug, name, source_path, watch) VALUES (?, ?, ?, 1) RETURNING id",
             (slug, spec["name"], str(path)),
         ).fetchone()
+        if row is None:
+            # sqlite without RETURNING
+            conn.execute(
+                "INSERT INTO sports(slug, name, source_path, watch) VALUES (?, ?, ?, 1)",
+                (slug, spec["name"], str(path)),
+            )
+            row = conn.execute("SELECT id FROM sports WHERE slug = ?", (slug,)).fetchone()
         sport_id = row["id"]
     clear_sport_data(conn, sport_id)
 
@@ -193,7 +220,7 @@ def _import_rank(conn, path: Path, sport_id: int) -> tuple[str | None, int]:
 
 
 def _import_games(conn, path: Path, sport_id: int) -> int:
-    wb, rows = _iter_sheet(path, "Games", max_col=16)
+    wb, rows = _iter_sheet(path, "Games", max_col=20)
     if rows is None:
         return 0
     header = next(rows, None)
@@ -201,43 +228,108 @@ def _import_games(conn, path: Path, sport_id: int) -> int:
         wb.close()
         return 0
     hmap = _header_map(header)
-    # Tennis (and similar) ledgers are line-score sheets, not team-vs-team ratings rows.
+    # Tennis dual-meet line scores
     if "home team" in hmap or "match date" in hmap:
         wb.close()
-        return 0
+        return _import_tennis_lines(conn, path, sport_id)
+
+    def col(*names):
+        for n in names:
+            if n in hmap:
+                return hmap[n]
+        return None
+
+    date_i = col("date")
+    t1_i = col("team 1", "team1", "home team")
+    s1_i = col("score 1", "score1")
+    t2_i = col("team 2", "team2", "away team")
+    s2_i = col("score 2", "score2")
+    home_i = col("home", "h")
+    par_i = col("course par", "par")
+    # Fall back to classic positional layout
+    if t1_i is None:
+        date_i, t1_i, s1_i, t2_i, s2_i, home_i = 0, 1, 2, 3, 4, 5
+    else:
+        # Many Off/Def sheets label Team1/Team2 but leave Score columns unlabeled
+        if s1_i is None and t1_i is not None:
+            s1_i = t1_i + 1
+        if s2_i is None and t2_i is not None:
+            s2_i = t2_i + 1
+        if home_i is None:
+            home_i = (s2_i + 1) if s2_i is not None else 5
+
     offdef = "orioff1" in hmap or "newoff1" in hmap
+    # ensure course_par column
+    try:
+        conn.execute("ALTER TABLE games ADD COLUMN course_par REAL")
+    except Exception:
+        pass
+
     count = 0
     batch = []
     for r in rows:
-        if not r or len(r) < 5:
+        if not r or len(r) <= max(t1_i or 0, s1_i or 0, t2_i or 0, s2_i or 0):
             continue
-        t1, s1, t2, s2 = cell(r[1]), cell(r[2]), cell(r[3]), cell(r[4])
+        t1 = cell(r[t1_i]) if t1_i is not None else None
+        s1 = cell(r[s1_i]) if s1_i is not None else None
+        t2 = cell(r[t2_i]) if t2_i is not None else None
+        s2 = cell(r[s2_i]) if s2_i is not None else None
         if not t1 or not t2 or s1 is None or s2 is None:
             continue
         try:
             s1i, s2i = int(float(s1)), int(float(s2))
         except (TypeError, ValueError):
             continue
-        h = cell(r[5]) if len(r) > 5 else None
+        h = cell(r[home_i]) if home_i is not None and home_i < len(r) else None
+        par = cell(r[par_i]) if par_i is not None and par_i < len(r) else None
+        try:
+            par_f = float(par) if par is not None else None
+        except (TypeError, ValueError):
+            par_f = None
+        dt = cell(r[date_i]) if date_i is not None and date_i < len(r) else None
+
         if offdef:
-            ori_off1, ori_def1 = cell(r[6]), cell(r[7])
-            ori_off2, ori_def2 = cell(r[8]), cell(r[9])
-            new_off1, new_def1 = cell(r[10]), cell(r[11])
-            new_off2, new_def2 = cell(r[12]), cell(r[13])
-            gd = cell(r[14]) if len(r) > 14 else None
-            err = cell(r[15]) if len(r) > 15 else None
+            # Prefer header names when present
+            def hv(key, fallback_idx):
+                i = hmap.get(key)
+                if i is not None and i < len(r):
+                    return cell(r[i])
+                return cell(r[fallback_idx]) if fallback_idx < len(r) else None
+
+            ori_off1 = hv("orioff1", 6)
+            ori_def1 = hv("oridef1", 7)
+            ori_off2 = hv("orioff2", 8)
+            ori_def2 = hv("oridef2", 9)
+            new_off1 = hv("newoff1", 10)
+            new_def1 = hv("newdef1", 11)
+            new_off2 = hv("newoff2", 12)
+            new_def2 = hv("newdef2", 13)
+            gd = hv("gd", 14) if "gd" in hmap or len(r) > 14 else None
+            err = hv("error", 15) if "error" in hmap or len(r) > 15 else None
         else:
-            # Ori1, Ori2, New1, New2 live in the overall-rating columns
-            ori_off1, ori_def1 = cell(r[6]) if len(r) > 6 else None, None
-            ori_off2, ori_def2 = cell(r[7]) if len(r) > 7 else None, None
-            new_off1, new_def1 = cell(r[8]) if len(r) > 8 else None, None
-            new_off2, new_def2 = cell(r[9]) if len(r) > 9 else None, None
-            gd = cell(r[10]) if len(r) > 10 else None
-            err = cell(r[11]) if len(r) > 11 else None
+            # Single-rating Ori/New in rating columns
+            ori_i = hmap.get("ori_team1") or hmap.get("ori1")
+            ori2_i = hmap.get("ori_team2") or hmap.get("ori2")
+            new_i = hmap.get("new_team1") or hmap.get("new1")
+            new2_i = hmap.get("new_team2") or hmap.get("new2")
+            if ori_i is None:
+                ori_off1 = cell(r[6]) if len(r) > 6 else None
+                ori_off2 = cell(r[7]) if len(r) > 7 else None
+                new_off1 = cell(r[8]) if len(r) > 8 else None
+                new_off2 = cell(r[9]) if len(r) > 9 else None
+            else:
+                ori_off1 = cell(r[ori_i]) if ori_i < len(r) else None
+                ori_off2 = cell(r[ori2_i]) if ori2_i is not None and ori2_i < len(r) else None
+                new_off1 = cell(r[new_i]) if new_i is not None and new_i < len(r) else None
+                new_off2 = cell(r[new2_i]) if new2_i is not None and new2_i < len(r) else None
+            ori_def1 = ori_def2 = new_def1 = new_def2 = None
+            gd = cell(r[hmap["act_diff"]]) if "act_diff" in hmap else (cell(r[10]) if len(r) > 10 else None)
+            err = cell(r[hmap["error"]]) if "error" in hmap else (cell(r[11]) if len(r) > 11 else None)
+
         batch.append(
             (
                 sport_id,
-                cell(r[0]),
+                dt,
                 t1,
                 s1i,
                 t2,
@@ -253,6 +345,7 @@ def _import_games(conn, path: Path, sport_id: int) -> int:
                 new_def2,
                 gd,
                 err,
+                par_f,
             )
         )
         if len(batch) >= 2000:
@@ -261,8 +354,8 @@ def _import_games(conn, path: Path, sport_id: int) -> int:
                 INSERT INTO games(
                   sport_id, date, team1, score1, team2, score2, home,
                   ori_off1, ori_def1, ori_off2, ori_def2,
-                  new_off1, new_def1, new_off2, new_def2, gd, error
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  new_off1, new_def1, new_off2, new_def2, gd, error, course_par
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 batch,
             )
@@ -274,8 +367,136 @@ def _import_games(conn, path: Path, sport_id: int) -> int:
             INSERT INTO games(
               sport_id, date, team1, score1, team2, score2, home,
               ori_off1, ori_def1, ori_off2, ori_def2,
-              new_off1, new_def1, new_off2, new_def2, gd, error
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              new_off1, new_def1, new_off2, new_def2, gd, error, course_par
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            batch,
+        )
+        count += len(batch)
+    wb.close()
+    return count
+
+
+def _import_tennis_lines(conn, path: Path, sport_id: int) -> int:
+    """Import tennis dual meets into line_matches (5 positions × Game 1 scores)."""
+    # Ensure table
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS line_matches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sport_id INTEGER NOT NULL,
+            date TEXT,
+            home_team TEXT NOT NULL,
+            away_team TEXT NOT NULL,
+            home INTEGER,
+            s1s_h REAL, s1s_a REAL,
+            s2s_h REAL, s2s_a REAL,
+            s3s_h REAL, s3s_a REAL,
+            s1d_h REAL, s1d_a REAL,
+            s2d_h REAL, s2d_a REAL
+        )
+        """
+    )
+    wb, rows = _iter_sheet(path, "Games", max_col=20)
+    if rows is None:
+        return 0
+    header = next(rows, None)
+    if not header:
+        wb.close()
+        return 0
+    hmap = _header_map(header)
+
+    def idx(*names):
+        for n in names:
+            if n in hmap:
+                return hmap[n]
+        return None
+
+    date_i = idx("match date", "date")
+    home_i = idx("home team")
+    away_i = idx("away team")
+    home_flag_i = idx("home")
+    # Game 1 score columns
+    cols = {
+        "s1s_h": idx("home 1st singles game 1 score"),
+        "s2s_h": idx("home 2nd singles game 1 score"),
+        "s3s_h": idx("home 3rd singles game 1 score"),
+        "s1d_h": idx("home 1st doubles game 1 score"),
+        "s2d_h": idx("home 2nd doubles game 1 score"),
+        "s1s_a": idx("away 1st singles game 1 score"),
+        "s2s_a": idx("away 2nd singles game 1 score"),
+        "s3s_a": idx("away 3rd singles game 1 score"),
+        "s1d_a": idx("away 1st doubles game 1 score"),
+        "s2d_a": idx("away 2nd doubles game 1 score"),
+    }
+    # Positional fallback from known layout
+    if home_i is None:
+        date_i, home_i, away_i, home_flag_i = 0, 1, 7, 13
+        cols = {
+            "s1s_h": 2, "s2s_h": 3, "s3s_h": 4, "s1d_h": 5, "s2d_h": 6,
+            "s1s_a": 8, "s2s_a": 9, "s3s_a": 10, "s1d_a": 11, "s2d_a": 12,
+        }
+
+    batch = []
+    count = 0
+
+    def num(r, i):
+        if i is None or i >= len(r):
+            return None
+        v = cell(r[i])
+        if v is None:
+            return None
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    for r in rows:
+        if not r:
+            continue
+        ht = cell(r[home_i]) if home_i is not None and home_i < len(r) else None
+        at = cell(r[away_i]) if away_i is not None and away_i < len(r) else None
+        if not ht or not at:
+            continue
+        hf = cell(r[home_flag_i]) if home_flag_i is not None and home_flag_i < len(r) else 1
+        batch.append(
+            (
+                sport_id,
+                cell(r[date_i]) if date_i is not None and date_i < len(r) else None,
+                ht,
+                at,
+                1 if hf == 1 else 0,
+                num(r, cols["s1s_h"]),
+                num(r, cols["s1s_a"]),
+                num(r, cols["s2s_h"]),
+                num(r, cols["s2s_a"]),
+                num(r, cols["s3s_h"]),
+                num(r, cols["s3s_a"]),
+                num(r, cols["s1d_h"]),
+                num(r, cols["s1d_a"]),
+                num(r, cols["s2d_h"]),
+                num(r, cols["s2d_a"]),
+            )
+        )
+        if len(batch) >= 1000:
+            conn.executemany(
+                """
+                INSERT INTO line_matches(
+                  sport_id, date, home_team, away_team, home,
+                  s1s_h, s1s_a, s2s_h, s2s_a, s3s_h, s3s_a, s1d_h, s1d_a, s2d_h, s2d_a
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                batch,
+            )
+            count += len(batch)
+            batch.clear()
+    if batch:
+        conn.executemany(
+            """
+            INSERT INTO line_matches(
+              sport_id, date, home_team, away_team, home,
+              s1s_h, s1s_a, s2s_h, s2s_a, s3s_h, s3s_a, s1d_h, s1d_a, s2d_h, s2d_a
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             batch,
         )

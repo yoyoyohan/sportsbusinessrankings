@@ -50,6 +50,7 @@ TABLES = [
     ("projections", ["sport_id", "team", "quality", "pp", "qual_diff", "win_odds", "exp_pp", "notes"]),
     ("our_games", ["id", "sport_id", "game", "date", "off", "def", "rating", "running"]),
     ("last_week", ["sport_id", "team", "rank", "rating", "off", "def", "change", "prev", "n", "last_game"]),
+    ("sport_hfa", ["sport_id", "q_sum", "q_n", "r_sum", "r_n", "season_key", "updated_at"]),
 ]
 
 
