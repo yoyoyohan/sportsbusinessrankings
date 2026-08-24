@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
 from catalog import SPORTS  # noqa: E402
-from db import connect, get_database_url, init_db, set_meta  # noqa: E402
+from db import connect, ensure_schema_extras, get_database_url, init_db, set_meta  # noqa: E402
 from drive_sync import refresh_sport_file  # noqa: E402
 from import_workbook import import_sport  # noqa: E402
 from recompute import recompute_sport  # noqa: E402
@@ -23,6 +23,16 @@ from recompute import recompute_sport  # noqa: E402
 def run() -> dict:
     if not get_database_url():
         print("WARNING: DATABASE_URL is not set; importing into local SQLite.", flush=True)
+    else:
+        # Ensure Postgres extras exist before the first sport (avoids aborted transactions)
+        try:
+            conn = connect()
+            init_db(conn)
+            ensure_schema_extras(conn)
+            conn.close()
+        except Exception as exc:
+            print(f"schema bootstrap failed: {exc}", flush=True)
+            traceback.print_exc()
 
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     print(f"scheduled refresh start {started}", flush=True)
@@ -88,7 +98,14 @@ def run() -> dict:
 
 if __name__ == "__main__":
     summary = run()
-    # Non-zero only if every sport failed
-    if not summary["results"] and summary["errors"]:
+    # Fail the GitHub Action if any sport failed (partial success still updates meta)
+    if summary["errors"]:
+        print(
+            f"ERROR: {len(summary['errors'])} sport(s) failed: "
+            + ", ".join(e["slug"] for e in summary["errors"]),
+            flush=True,
+        )
+        sys.exit(1)
+    if not summary["results"]:
         sys.exit(1)
     sys.exit(0)

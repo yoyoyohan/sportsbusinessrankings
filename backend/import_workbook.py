@@ -82,17 +82,11 @@ def import_sport(slug: str, include_games: bool = True, *, use_sqlite: bool = Fa
     if not path.exists():
         raise FileNotFoundError(path)
 
-    from db import DB_PATH, connect_sqlite
+    from db import DB_PATH, connect_sqlite, ensure_schema_extras
 
     conn = connect_sqlite(DB_PATH) if use_sqlite else connect()
     init_db(conn)
-    # Ensure tennis/hfa tables exist before clear
-    try:
-        from recompute import _ensure_tables
-
-        _ensure_tables(conn)
-    except Exception:
-        pass
+    ensure_schema_extras(conn)
     row = conn.execute("SELECT id FROM sports WHERE slug = ?", (slug,)).fetchone()
     if row:
         sport_id = row["id"]
@@ -259,11 +253,6 @@ def _import_games(conn, path: Path, sport_id: int) -> int:
             home_i = (s2_i + 1) if s2_i is not None else 5
 
     offdef = "orioff1" in hmap or "newoff1" in hmap
-    # ensure course_par column
-    try:
-        conn.execute("ALTER TABLE games ADD COLUMN course_par REAL")
-    except Exception:
-        pass
 
     count = 0
     batch = []
@@ -379,24 +368,9 @@ def _import_games(conn, path: Path, sport_id: int) -> int:
 
 def _import_tennis_lines(conn, path: Path, sport_id: int) -> int:
     """Import tennis dual meets into line_matches (5 positions × Game 1 scores)."""
-    # Ensure table
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS line_matches (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sport_id INTEGER NOT NULL,
-            date TEXT,
-            home_team TEXT NOT NULL,
-            away_team TEXT NOT NULL,
-            home INTEGER,
-            s1s_h REAL, s1s_a REAL,
-            s2s_h REAL, s2s_a REAL,
-            s3s_h REAL, s3s_a REAL,
-            s1d_h REAL, s1d_a REAL,
-            s2d_h REAL, s2d_a REAL
-        )
-        """
-    )
+    from db import ensure_schema_extras
+
+    ensure_schema_extras(conn)
     wb, rows = _iter_sheet(path, "Games", max_col=20)
     if rows is None:
         return 0
