@@ -133,10 +133,9 @@ Coach example (neutral, edges ≈ 0): opponent Off 5 / Def 2, new team loses 3�
 | `backend/recompute.py` | Replay game logs → `teams` + `sport_hfa` (+ tennis `line_matches`) |
 | `POST /api/admin/recompute/{slug}` | Recompute one sport |
 | `POST /api/admin/recompute-all` | Recompute every sport |
-| Scheduled Drive refresh | Import Rank + Games from Drive (**rankings = spreadsheet**) |
-| Admin “Test engine” | Optional full replay from game logs (audit only; ≠ Excel) |
+**Today (live):** Drive Rank is what the site shows. After each refresh, the engine also applies any **Games rows missing New*** (Excel hasn’t calculated them yet). If the coach’s Rank is current, applied = 0 and numbers stay matched.
 
-CLI: `python backend/recompute.py --all --sqlite` (engine test only)
+**Forward apply:** `backend/forward_apply.py` — `POST /api/admin/apply-forward/{slug}` or automatic after Drive refresh.
 
 ## What “native algorithm on the site” means
 

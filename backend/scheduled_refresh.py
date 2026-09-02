@@ -16,15 +16,15 @@ sys.path.insert(0, str(ROOT / "backend"))
 from catalog import SPORTS  # noqa: E402
 from db import connect, ensure_schema_extras, get_database_url, init_db, set_meta  # noqa: E402
 from drive_sync import refresh_sport_file  # noqa: E402
+from forward_apply import apply_forward  # noqa: E402
 from import_workbook import import_sport  # noqa: E402
 
 
 def run(*, recompute: bool = False) -> dict:
     """Download Drive copies and import Rank + Games into the database.
 
-    By default rankings come from the spreadsheet Rank sheet (coach's truth).
-    Pass recompute=True only for engine testing — that rebuilds from game logs
-    and will not match Excel.
+    Rankings start from the spreadsheet Rank sheet. Then the native engine
+    applies any Games rows that Excel has not calculated yet (missing New*).
     """
     if not get_database_url():
         print("WARNING: DATABASE_URL is not set; importing into local SQLite.", flush=True)
@@ -70,6 +70,17 @@ def run(*, recompute: bool = False) -> dict:
                 entry["rankings_source"] = "native_engine"
                 print(
                     f"    recomputed engine={recomputed.get('engine')} teams={recomputed.get('teams')}",
+                    flush=True,
+                )
+            else:
+                forward = apply_forward(slug)
+                entry["forward"] = {
+                    "applied": forward.get("applied"),
+                    "source": forward.get("source"),
+                }
+                entry["rankings_source"] = forward.get("source") or "drive_rank"
+                print(
+                    f"    forward applied={forward.get('applied')} source={forward.get('source')}",
                     flush=True,
                 )
             results.append(entry)

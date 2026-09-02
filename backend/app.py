@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from catalog import DRIVE_FOLDER_URL, SPORTS, sport_by_slug
 from db import ROOT, connect, get_meta, get_sport, init_db
 from drive_sync import refresh_sport_file
+from forward_apply import apply_forward
 from import_workbook import import_all, import_sport
 from recompute import recompute_all_offdef, recompute_sport
 
@@ -324,16 +325,35 @@ def admin_import_all(request: Request):
 
 @app.post("/api/admin/refresh/{slug}")
 def admin_refresh_one(slug: str, request: Request):
-    """Download a fresh copy from Drive (GET only), then import locally."""
+    """Download a fresh copy from Drive (GET only), import Rank/Games, apply pending games."""
     require_admin(request)
     if not sport_by_slug(slug):
         raise HTTPException(404, slug)
     try:
         path = refresh_sport_file(slug)
         summary = import_sport(slug, include_games=True)
-        return {"ok": True, "downloaded": str(path), **summary, "drive_write": False}
+        forward = apply_forward(slug)
+        return {
+            "ok": True,
+            "downloaded": str(path),
+            **summary,
+            "forward": forward,
+            "drive_write": False,
+        }
     except Exception as exc:
         raise HTTPException(500, f"Refresh failed: {exc}") from exc
+
+
+@app.post("/api/admin/apply-forward/{slug}")
+def admin_apply_forward(slug: str, request: Request):
+    """Apply engine to Games rows that Excel has not calculated yet."""
+    require_admin(request)
+    if not sport_by_slug(slug):
+        raise HTTPException(404, slug)
+    try:
+        return apply_forward(slug)
+    except Exception as exc:
+        raise HTTPException(500, f"Forward apply failed: {exc}") from exc
 
 
 @app.post("/api/admin/recompute/{slug}")
