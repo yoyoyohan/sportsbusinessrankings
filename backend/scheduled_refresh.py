@@ -25,7 +25,11 @@ def run(*, recompute: bool = False) -> dict:
 
     Rankings start from the spreadsheet Rank sheet. Then the native engine
     applies any Games rows that Excel has not calculated yet (missing New*).
+
+    Intended for GitHub Actions (more RAM than the Render web dyno).
     """
+    import gc
+
     if not get_database_url():
         print("WARNING: DATABASE_URL is not set; importing into local SQLite.", flush=True)
     else:
@@ -88,6 +92,8 @@ def run(*, recompute: bool = False) -> dict:
             errors.append({"slug": slug, "error": str(exc)})
             print(f"    FAIL {exc}", flush=True)
             traceback.print_exc()
+        finally:
+            gc.collect()
 
     finished = datetime.now(timezone.utc).isoformat(timespec="seconds")
     ok = len(errors) == 0

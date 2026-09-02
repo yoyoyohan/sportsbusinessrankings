@@ -42,11 +42,11 @@ def _norm_date(d: str | None) -> str | None:
 
 
 def load_hfa_from_calc(path: Path) -> HfaState | None:
-    """Read Q2/Q3/R2/R3 from Calc when present."""
+    """Read Q2/Q3/R2/R3 from Calc when present (lightweight read)."""
     try:
         from openpyxl import load_workbook
 
-        wb = load_workbook(path, data_only=True, keep_vba=False)
+        wb = load_workbook(path, read_only=True, data_only=True, keep_vba=False)
         if "Calc" not in wb.sheetnames:
             wb.close()
             return None
@@ -60,7 +60,6 @@ def load_hfa_from_calc(path: Path) -> HfaState | None:
                 return None
 
         q2, q3, r2, r3 = num("Q2"), num("Q3"), num("R2"), num("R3")
-        # Tennis uses Y2/Y3 for home edge in some workbooks
         if q2 is None:
             q2, q3 = num("Y2"), num("Y3")
         if r2 is None:
