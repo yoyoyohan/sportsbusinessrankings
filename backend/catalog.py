@@ -234,6 +234,7 @@ for _s in SPORTS:
     if kind == "offdef":
         _s["engine"] = "offdef"
         _s["games_delta"] = 0.75
+        _s["games_cap"] = 15.0
     elif kind == "lines":
         _s["engine"] = "lines"
         _s["games_delta"] = 0.75
@@ -250,6 +251,12 @@ for _s in SPORTS:
         # fencing, swimming
         _s["engine"] = "margin"
         _s["games_delta"] = 0.75
+
+# Football (coach): Games weight starts 2.75, +0.5/game, cap 8.25 (P1 in Calc).
+for _s in SPORTS:
+    if _s["slug"] == "football":
+        _s["games_delta"] = 0.5
+        _s["games_cap"] = 8.25
 
 
 def sport_by_slug(slug: str) -> dict | None:

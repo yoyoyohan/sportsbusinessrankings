@@ -65,6 +65,7 @@ def recompute_sport(
 
     engine_name = spec.get("engine") or "offdef"
     games_delta = float(spec.get("games_delta") or 0.75)
+    games_cap = float(spec.get("games_cap") or 15.0)
     group = spec.get("group") or "Fall"
 
     conn = connect_sqlite(DB_PATH) if use_sqlite else connect()
@@ -81,6 +82,7 @@ def recompute_sport(
             auto_seed_new=True,
             engine=engine_name if engine_name != "lines" else "lines",
             games_delta=games_delta,
+            games_cap=games_cap,
         )
         last_by_team: dict[str, str | None] = {}
         updates = []

@@ -88,9 +88,9 @@ def _floor0(x: float) -> float:
     return x if x > 0 else 0.0
 
 
-def _off_delta(exp: float, score: float, surprise: float, games: float) -> float:
+def _off_delta(exp: float, score: float, surprise: float, games: float, *, cap: float = GAMES_CAP) -> float:
     """N2 / O2: Off bump for a team."""
-    w = _w(games)
+    w = _w(games, cap)
     if exp < 0:
         if score > 0:
             return (score - exp) / w
@@ -98,9 +98,11 @@ def _off_delta(exp: float, score: float, surprise: float, games: float) -> float
     return surprise / w
 
 
-def _def_delta_vs_opp_exp(opp_exp: float, opp_score: float, opp_surprise: float, my_games: float) -> float:
+def _def_delta_vs_opp_exp(
+    opp_exp: float, opp_score: float, opp_surprise: float, my_games: float, *, cap: float = GAMES_CAP
+) -> float:
     """N3 / O3: Def bump (already signed as in Calc)."""
-    w = _w(my_games)
+    w = _w(my_games, cap)
     if opp_exp < 0:
         if opp_score > 0:
             return -((opp_score - opp_exp) / w)
@@ -161,6 +163,7 @@ def apply_offdef_game(
     hfa: HfaState,
     *,
     games_delta: float = GAMES_DELTA,
+    games_cap: float = GAMES_CAP,
     update_hfa: bool = True,
 ) -> GameResult:
     """One game through Calc + HFA accumulator update + Games += delta."""
@@ -169,10 +172,10 @@ def apply_offdef_game(
     k = s1 - _floor0(exp1)
     l = s2 - _floor0(exp2)
 
-    n2 = _off_delta(exp1, s1, k, t1.games)
-    o2 = _off_delta(exp2, s2, l, t2.games)
-    n3 = _def_delta_vs_opp_exp(exp2, s2, l, t1.games)
-    o3 = _def_delta_vs_opp_exp(exp1, s1, k, t2.games)
+    n2 = _off_delta(exp1, s1, k, t1.games, cap=games_cap)
+    o2 = _off_delta(exp2, s2, l, t2.games, cap=games_cap)
+    n3 = _def_delta_vs_opp_exp(exp2, s2, l, t1.games, cap=games_cap)
+    o3 = _def_delta_vs_opp_exp(exp1, s1, k, t2.games, cap=games_cap)
 
     new_off1 = t1.off + n2
     new_def1 = t1.deff + n3
@@ -227,6 +230,7 @@ def apply_margin_game(
     hfa: HfaState,
     *,
     games_delta: float = GAMES_DELTA,
+    games_cap: float = GAMES_CAP,
     cap: float | None = None,
     update_hfa: bool = True,
 ) -> GameResult:
@@ -238,7 +242,7 @@ def apply_margin_game(
         exp = cap
     actual = s1 - s2
     m = actual - exp
-    w1, w2 = _w(t1.games), _w(t2.games)
+    w1, w2 = _w(t1.games, games_cap), _w(t2.games, games_cap)
     n2, o2 = m / w1, -m / w2
     new1, new2 = t1.off + n2, t2.off + o2
     if update_hfa and home:
@@ -276,6 +280,7 @@ def apply_absolute_game(
     hfa: HfaState,
     *,
     games_delta: float = GAMES_DELTA,
+    games_cap: float = GAMES_CAP,
     par: float = 0.0,
     holes: float = 36.0,
     update_hfa: bool = True,
@@ -290,8 +295,8 @@ def apply_absolute_game(
     exp2 = par + t2.off
     k = s1 - _floor0(exp1)
     l = s2 - _floor0(exp2)
-    n2 = _off_delta(exp1, s1, k, t1.games)
-    o2 = _off_delta(exp2, s2, l, t2.games)
+    n2 = _off_delta(exp1, s1, k, t1.games, cap=games_cap)
+    o2 = _off_delta(exp2, s2, l, t2.games, cap=games_cap)
     new1, new2 = t1.off + n2, t2.off + o2
     if update_hfa and home:
         hfa.q_sum += s1 - _floor0(par + t1.off)
@@ -332,6 +337,8 @@ def apply_line_position(
     hfa: HfaState,
     games1: float,
     games2: float,
+    *,
+    games_cap: float = GAMES_CAP,
 ) -> tuple[float, float, float]:
     """One tennis position update (margin vs rating gap). Returns (new1, new2, error)."""
     q = hfa.q4 if home else 0.0
@@ -339,7 +346,7 @@ def apply_line_position(
     # Calc clamps projected edge for some displays; update uses raw margin error
     actual = float(score1) - float(score2)
     m = actual - exp
-    w1, w2 = _w(games1), _w(games2)
+    w1, w2 = _w(games1, games_cap), _w(games2, games_cap)
     return r1 + m / w1, r2 - m / w2, abs(m)
 
 
@@ -364,6 +371,7 @@ class EngineState:
     auto_seed_new: bool = True
     engine: str = "offdef"
     games_delta: float = GAMES_DELTA
+    games_cap: float = GAMES_CAP
 
     def _key(self, name: str) -> str:
         return name.strip().lower()
@@ -491,15 +499,18 @@ class EngineState:
 
         if self.engine == "offdef":
             result = apply_offdef_game(
-                t1, t2, score1, score2, home_b, self.hfa, games_delta=self.games_delta
+                t1, t2, score1, score2, home_b, self.hfa,
+                games_delta=self.games_delta, games_cap=self.games_cap,
             )
         elif self.engine == "margin":
             result = apply_margin_game(
-                t1, t2, score1, score2, home_b, self.hfa, games_delta=self.games_delta
+                t1, t2, score1, score2, home_b, self.hfa,
+                games_delta=self.games_delta, games_cap=self.games_cap,
             )
         elif self.engine == "margin_cap25":
             result = apply_margin_game(
-                t1, t2, score1, score2, home_b, self.hfa, games_delta=self.games_delta, cap=25.0
+                t1, t2, score1, score2, home_b, self.hfa,
+                games_delta=self.games_delta, games_cap=self.games_cap, cap=25.0,
             )
         elif self.engine in ("absolute", "golf"):
             result = apply_absolute_game(
@@ -510,6 +521,7 @@ class EngineState:
                 home_b,
                 self.hfa,
                 games_delta=self.games_delta,
+                games_cap=self.games_cap,
                 par=par if self.engine == "golf" else 0.0,
                 holes=holes if self.engine == "golf" else 36.0,
             )
@@ -553,7 +565,9 @@ class EngineState:
                 continue
             r1 = t1.lines[pos]
             r2 = t2.lines[pos]
-            n1, n2, err = apply_line_position(r1, r2, s1, s2, home_b, self.hfa, t1.games, t2.games)
+            n1, n2, err = apply_line_position(
+                r1, r2, s1, s2, home_b, self.hfa, t1.games, t2.games, games_cap=self.games_cap
+            )
             t1.lines[pos] = n1
             t2.lines[pos] = n2
             errors.append(err)

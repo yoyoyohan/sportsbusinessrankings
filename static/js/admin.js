@@ -31,7 +31,7 @@ async function load() {
         .map((spec) => {
           const s = bySlug[spec.slug] || {};
           const kind = s.kind || "";
-          const recompute = `<button class="btn ghost" data-recompute="${spec.slug}">Recompute</button>`;
+          const recompute = `<button class="btn ghost" data-recompute="${spec.slug}" title="Rebuild from games — will not match Excel">Test engine</button>`;
           return `<tr>
             <td class="left">${spec.name}</td>
             <td class="left">${kind || "—"}</td>

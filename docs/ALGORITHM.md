@@ -60,7 +60,15 @@ Rating  = Off + Def
 
 Home edges `Q4` / `R4` are running averages from the **Q/R accumulator columns** (coach-confirmed; see below). Late-season Soccer: `Q4≈0.320325`.
 
-Games weight: season start **2.75**; +**0.75** per game thereafter. New-team first Games weight follows same season-start convention once seeded.
+Games weight: season start **2.75**; per-sport increment and cap in Calc (`P1` = weight cap for updates).
+
+| Sport | + per game | Cap (P1) |
+|-------|------------|----------|
+| Most Off/Def | 0.75 | 15 |
+| **Football** | **0.5** | **8.25** |
+| Volleyball / bowling / gymnastics | 0.25 | 15 |
+
+Football change (coach): cap **8.25**, mod **0.5** — lowered MSE vs prior settings.
 
 ## Season start & new teams (coach-confirmed)
 
@@ -125,11 +133,10 @@ Coach example (neutral, edges ≈ 0): opponent Off 5 / Def 2, new team loses 3�
 | `backend/recompute.py` | Replay game logs → `teams` + `sport_hfa` (+ tennis `line_matches`) |
 | `POST /api/admin/recompute/{slug}` | Recompute one sport |
 | `POST /api/admin/recompute-all` | Recompute every sport |
-| Scheduled Drive refresh | Import then **recompute** so live rankings are native |
+| Scheduled Drive refresh | Import Rank + Games from Drive (**rankings = spreadsheet**) |
+| Admin “Test engine” | Optional full replay from game logs (audit only; ≠ Excel) |
 
-Engine modes (see `catalog.py`): `offdef`, `margin`, `margin_cap25`, `absolute`, `golf`, `lines`.
-
-CLI: `python backend/recompute.py --all --sqlite`
+CLI: `python backend/recompute.py --all --sqlite` (engine test only)
 
 ## What “native algorithm on the site” means
 

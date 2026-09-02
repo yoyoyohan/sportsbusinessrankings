@@ -17,10 +17,15 @@ from catalog import SPORTS  # noqa: E402
 from db import connect, ensure_schema_extras, get_database_url, init_db, set_meta  # noqa: E402
 from drive_sync import refresh_sport_file  # noqa: E402
 from import_workbook import import_sport  # noqa: E402
-from recompute import recompute_sport  # noqa: E402
 
 
-def run() -> dict:
+def run(*, recompute: bool = False) -> dict:
+    """Download Drive copies and import Rank + Games into the database.
+
+    By default rankings come from the spreadsheet Rank sheet (coach's truth).
+    Pass recompute=True only for engine testing — that rebuilds from game logs
+    and will not match Excel.
+    """
     if not get_database_url():
         print("WARNING: DATABASE_URL is not set; importing into local SQLite.", flush=True)
     else:
@@ -46,24 +51,28 @@ def run() -> dict:
             path = refresh_sport_file(slug)
             summary = import_sport(slug, include_games=True)
             print(f"    imported teams={summary.get('teams')} games={summary.get('games')}", flush=True)
-            recomputed = recompute_sport(slug)
-            results.append(
-                {
-                    "slug": slug,
-                    "ok": True,
-                    "downloaded": str(path),
-                    **summary,
-                    "recompute": {
-                        "teams": recomputed.get("teams"),
-                        "engine": recomputed.get("engine"),
-                        "top5": recomputed.get("top5"),
-                    },
+            entry = {
+                "slug": slug,
+                "ok": True,
+                "downloaded": str(path),
+                **summary,
+                "rankings_source": "drive_rank",
+            }
+            if recompute:
+                from recompute import recompute_sport
+
+                recomputed = recompute_sport(slug)
+                entry["recompute"] = {
+                    "teams": recomputed.get("teams"),
+                    "engine": recomputed.get("engine"),
+                    "top5": recomputed.get("top5"),
                 }
-            )
-            print(
-                f"    recomputed engine={recomputed.get('engine')} teams={recomputed.get('teams')}",
-                flush=True,
-            )
+                entry["rankings_source"] = "native_engine"
+                print(
+                    f"    recomputed engine={recomputed.get('engine')} teams={recomputed.get('teams')}",
+                    flush=True,
+                )
+            results.append(entry)
         except Exception as exc:
             errors.append({"slug": slug, "error": str(exc)})
             print(f"    FAIL {exc}", flush=True)
@@ -77,6 +86,7 @@ def run() -> dict:
         set_meta(conn, "last_refresh_at", finished)
         set_meta(conn, "last_refresh_ok", "1" if ok else "0")
         set_meta(conn, "last_refresh_errors", str(len(errors)))
+        set_meta(conn, "rankings_source", "native_engine" if recompute else "drive_rank")
         conn.commit()
         conn.close()
     except Exception as exc:
